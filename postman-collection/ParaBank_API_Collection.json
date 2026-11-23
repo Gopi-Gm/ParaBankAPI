@@ -1,0 +1,2261 @@
+{
+  "info": {
+    "_postman_id": "parabank-rest-api-collection-v1",
+    "name": "ParaBank REST API Collection",
+    "description": "Production-grade Postman Collection for ParaBank REST API with full 8-microservice coverage, environment variable parametrization, dynamic API chaining, and response assertions.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 - End-to-End API Chaining Workflow",
+      "description": "Sequential automated API Chaining flow where outputs (customerId, accountId, transactionId, positionId) are automatically stored in the environment and fed into downstream requests.",
+      "item": [
+        {
+          "name": "01 - Initialize Database Baseline",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 or 204 (Baseline Initialized)\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "pm.test(\"Response time SLA < 2500ms\", function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2500);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/initializeDB",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "initializeDB"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Customer Login (Chains: customerId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var customer = pm.response.json();",
+                  "pm.test(\"Customer profile contains valid ID and Name\", function () {",
+                  "    pm.expect(customer).to.have.property(\"id\");",
+                  "    pm.expect(customer.firstName).to.eql(\"John\");",
+                  "});",
+                  "// API CHAINING: Store customerId into environment for downstream requests",
+                  "pm.environment.set(\"customerId\", customer.id.toString());",
+                  "console.log(\"🔗 [CHAIN] Stored customerId:\", customer.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login/{{username}}/{{password}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login",
+                "{{username}}",
+                "{{password}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Get Customer Profile (Uses: customerId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var customer = pm.response.json();",
+                  "pm.test(\"Customer ID matches chained environment variable\", function () {",
+                  "    pm.expect(customer.id.toString()).to.eql(pm.environment.get(\"customerId\"));",
+                  "    pm.expect(customer.address).to.have.property(\"city\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04 - Get Customer Accounts (Chains: primaryAccountId, secondaryAccountId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var accounts = pm.response.json();",
+                  "pm.test(\"Customer has existing accounts\", function () {",
+                  "    pm.expect(Array.isArray(accounts)).to.be.true;",
+                  "    pm.expect(accounts.length).to.be.above(0);",
+                  "});",
+                  "// API CHAINING: Store primary and secondary account IDs",
+                  "pm.environment.set(\"primaryAccountId\", accounts[0].id.toString());",
+                  "if (accounts.length > 1) {",
+                  "    pm.environment.set(\"secondaryAccountId\", accounts[1].id.toString());",
+                  "} else {",
+                  "    pm.environment.set(\"secondaryAccountId\", accounts[0].id.toString());",
+                  "}",
+                  "console.log(\"🔗 [CHAIN] Stored primaryAccountId:\", accounts[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}",
+                "accounts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "05 - Create New Savings Account (Uses: customerId, primaryAccountId; Chains: newAccountId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204 (Account Created)\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var newAccount = pm.response.json();",
+                  "pm.test(\"New Account has ID and is SAVINGS type\", function () {",
+                  "    pm.expect(newAccount).to.have.property(\"id\");",
+                  "    pm.expect(newAccount.type).to.eql(\"SAVINGS\");",
+                  "});",
+                  "// API CHAINING: Capture newly created account ID for subsequent transactions",
+                  "pm.environment.set(\"newAccountId\", newAccount.id.toString());",
+                  "console.log(\"🔗 [CHAIN] Stored newAccountId:\", newAccount.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/createAccount?customerId={{customerId}}&newAccountType=1&fromAccountId={{primaryAccountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "createAccount"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "description": ""
+                },
+                {
+                  "key": "newAccountType",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "fromAccountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "06 - Verify New Account Details (Uses: newAccountId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var account = pm.response.json();",
+                  "pm.test(\"Account ID matches chained newAccountId and customerId\", function () {",
+                  "    pm.expect(account.id.toString()).to.eql(pm.environment.get(\"newAccountId\"));",
+                  "    pm.expect(account.customerId.toString()).to.eql(pm.environment.get(\"customerId\"));",
+                  "    pm.expect(account.type).to.eql(\"SAVINGS\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{newAccountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{newAccountId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "07 - Deposit Funds into New Account (Uses: newAccountId, depositAmount)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var responseText = pm.response.text();",
+                  "pm.test(\"Deposit confirmation message received\", function () {",
+                  "    pm.expect(responseText).to.include(\"Successfully deposited\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deposit?accountId={{newAccountId}}&amount={{depositAmount}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deposit"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{newAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "{{depositAmount}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "08 - Transfer Funds (Uses: newAccountId, primaryAccountId, transferAmount)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var responseText = pm.response.text();",
+                  "pm.test(\"Transfer confirmation message received\", function () {",
+                  "    pm.expect(responseText).to.include(\"Successfully transferred\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transfer?fromAccountId={{newAccountId}}&toAccountId={{primaryAccountId}}&amount={{transferAmount}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{newAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "{{transferAmount}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "09 - Bill Payment from New Account (Uses: newAccountId, billPayAmount)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var billPay = pm.response.json();",
+                  "pm.test(\"Bill payment confirmed for payee and correct account\", function () {",
+                  "    pm.expect(billPay.accountId.toString()).to.eql(pm.environment.get(\"newAccountId\"));",
+                  "    pm.expect(billPay.payeeName).to.eql(\"Acme Power Utilities\");",
+                  "    pm.expect(billPay.amount).to.eql(parseFloat(pm.environment.get(\"billPayAmount\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/billpay?accountId={{newAccountId}}&amount={{billPayAmount}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "billpay"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{newAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "{{billPayAmount}}",
+                  "description": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Power Utilities\",\n  \"address\": {\n    \"street\": \"100 Energy Blvd\",\n    \"city\": \"Beverly Hills\",\n    \"state\": \"CA\",\n    \"zipCode\": \"90210\"\n  },\n  \"phoneNumber\": \"310-555-0155\",\n  \"accountNumber\": 987654321\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "10 - Get Account Transactions (Uses: newAccountId; Chains: transactionId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var txns = pm.response.json();",
+                  "pm.test(\"Transactions array contains recorded activities\", function () {",
+                  "    pm.expect(Array.isArray(txns)).to.be.true;",
+                  "    pm.expect(txns.length).to.be.above(0);",
+                  "});",
+                  "// API CHAINING: Extract latest transaction ID for deep lookup",
+                  "pm.environment.set(\"transactionId\", txns[0].id.toString());",
+                  "console.log(\"🔗 [CHAIN] Stored transactionId:\", txns[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{newAccountId}}/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{newAccountId}}",
+                "transactions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "11 - Inquire Transaction Details by ID (Uses: transactionId, newAccountId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var txn = pm.response.json();",
+                  "pm.test(\"Transaction details match chained ID and Account ID\", function () {",
+                  "    pm.expect(txn.id.toString()).to.eql(pm.environment.get(\"transactionId\"));",
+                  "    pm.expect(txn.accountId.toString()).to.eql(pm.environment.get(\"newAccountId\"));",
+                  "    pm.expect(txn).to.have.property(\"amount\");",
+                  "    pm.expect(txn).to.have.property(\"type\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "{{transactionId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "12 - Filter Transactions by Amount (Uses: newAccountId, transferAmount)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var filtered = pm.response.json();",
+                  "pm.test(\"Filtered transactions list returned\", function () {",
+                  "    pm.expect(Array.isArray(filtered)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{newAccountId}}/transactions/amount/{{transferAmount}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{newAccountId}}",
+                "transactions",
+                "amount",
+                "{{transferAmount}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "13 - Request Loan with 25% Down Payment (Uses: customerId, newAccountId, loanAmount, downPayment; Chains: loanAccountId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var loanRes = pm.response.json();",
+                  "pm.test(\"Loan decision is returned with approved status\", function () {",
+                  "    pm.expect(loanRes).to.have.property(\"approved\");",
+                  "    pm.expect(typeof loanRes.approved).to.eql(\"boolean\");",
+                  "});",
+                  "if (loanRes.accountId) {",
+                  "    pm.environment.set(\"loanAccountId\", loanRes.accountId.toString());",
+                  "    console.log(\"🔗 [CHAIN] Stored loanAccountId:\", loanRes.accountId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/requestLoan?customerId={{customerId}}&amount={{loanAmount}}&downPayment={{downPayment}}&fromAccountId={{newAccountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requestLoan"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "{{loanAmount}}",
+                  "description": ""
+                },
+                {
+                  "key": "downPayment",
+                  "value": "{{downPayment}}",
+                  "description": ""
+                },
+                {
+                  "key": "fromAccountId",
+                  "value": "{{newAccountId}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "14 - Buy Stock Position (Uses: customerId, newAccountId, stockName, stockSymbol, stockShares, stockPrice; Chains: positionId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var positions = pm.response.json();",
+                  "pm.test(\"Position successfully purchased and returned\", function () {",
+                  "    pm.expect(Array.isArray(positions)).to.be.true;",
+                  "    pm.expect(positions.length).to.be.above(0);",
+                  "});",
+                  "// API CHAINING: Extract created stock position ID",
+                  "var pos = positions[positions.length - 1];",
+                  "pm.environment.set(\"positionId\", pos.positionId.toString());",
+                  "console.log(\"🔗 [CHAIN] Stored positionId:\", pos.positionId);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}/buyPosition?accountId={{newAccountId}}&name={{stockName}}&symbol={{stockSymbol}}&shares={{stockShares}}&pricePerShare={{stockPrice}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}",
+                "buyPosition"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{newAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "name",
+                  "value": "{{stockName}}",
+                  "description": ""
+                },
+                {
+                  "key": "symbol",
+                  "value": "{{stockSymbol}}",
+                  "description": ""
+                },
+                {
+                  "key": "shares",
+                  "value": "{{stockShares}}",
+                  "description": ""
+                },
+                {
+                  "key": "pricePerShare",
+                  "value": "{{stockPrice}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "15 - Get Position Details by ID (Uses: positionId, customerId, stockSymbol)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var pos = pm.response.json();",
+                  "pm.test(\"Position matches chained positionId and stockSymbol\", function () {",
+                  "    pm.expect(pos.positionId.toString()).to.eql(pm.environment.get(\"positionId\"));",
+                  "    pm.expect(pos.customerId.toString()).to.eql(pm.environment.get(\"customerId\"));",
+                  "    pm.expect(pos.symbol).to.eql(pm.environment.get(\"stockSymbol\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/positions/{{positionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "positions",
+                "{{positionId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "16 - Sell Stock Position Shares (Uses: customerId, newAccountId, positionId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200 or 204\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});",
+                  "var positions = pm.response.json();",
+                  "pm.test(\"Updated positions array returned\", function () {",
+                  "    pm.expect(Array.isArray(positions)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}/sellPosition?accountId={{newAccountId}}&positionId={{positionId}}&shares=2&pricePerShare=330.00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}",
+                "sellPosition"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{newAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "positionId",
+                  "value": "{{positionId}}",
+                  "description": ""
+                },
+                {
+                  "key": "shares",
+                  "value": "2",
+                  "description": ""
+                },
+                {
+                  "key": "pricePerShare",
+                  "value": "330.00",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "17 - Startup JMS Message Listener",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 or 204 (JMS Listener Started)\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/startupJmsListener",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "startupJmsListener"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "18 - Shutdown JMS Message Listener",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 or 204 (JMS Listener Stopped)\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shutdownJmsListener",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shutdownJmsListener"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "19 - Clean Database (Reset)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 or 204 (Database Cleaned)\", function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cleanDB",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cleanDB"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Database Operations",
+      "description": "Database lifecycle endpoints for state reset and cleaning.",
+      "item": [
+        {
+          "name": "Initialize DB",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 or 204\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/initializeDB",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "initializeDB"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Clean DB",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 or 204\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/cleanDB",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cleanDB"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Misc Operations",
+      "description": "Authentication and runtime parameter settings.",
+      "item": [
+        {
+          "name": "Login Valid User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });",
+                  "var data = pm.response.json();",
+                  "pm.test(\"Login successful\", function () { pm.expect(data).to.have.property(\"id\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login/{{username}}/{{password}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login",
+                "{{username}}",
+                "{{password}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login Invalid Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400 Bad Request\", function () { pm.expect(pm.response.code).to.eql(400); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/login/{{username}}/invalid_pass",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login",
+                "{{username}}",
+                "invalid_pass"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Parameter (loanProcessor)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/setParameter/loanProcessor/funds",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "setParameter",
+                "loanProcessor",
+                "funds"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Parameter (loanProvider)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/setParameter/loanProvider/ParaBank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "setParameter",
+                "loanProvider",
+                "ParaBank"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Customers Operations",
+      "description": "Customer profile retrieval and updates.",
+      "item": [
+        {
+          "name": "Get Customer by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });",
+                  "var customer = pm.response.json();",
+                  "pm.test(\"Customer ID matches\", function () { pm.expect(customer.id.toString()).to.eql(pm.environment.get(\"customerId\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Customer KYC",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/update/{{customerId}}?firstName=John&lastName=Smith&street=1431+Main+St&city=Beverly+Hills&state=CA&zipCode=90210&phoneNumber=310-447-4121&ssn=622-11-9999&username={{username}}&password={{password}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "update",
+                "{{customerId}}"
+              ],
+              "query": [
+                {
+                  "key": "firstName",
+                  "value": "John",
+                  "description": ""
+                },
+                {
+                  "key": "lastName",
+                  "value": "Smith",
+                  "description": ""
+                },
+                {
+                  "key": "street",
+                  "value": "1431 Main St",
+                  "description": ""
+                },
+                {
+                  "key": "city",
+                  "value": "Beverly Hills",
+                  "description": ""
+                },
+                {
+                  "key": "state",
+                  "value": "CA",
+                  "description": ""
+                },
+                {
+                  "key": "zipCode",
+                  "value": "90210",
+                  "description": ""
+                },
+                {
+                  "key": "phoneNumber",
+                  "value": "310-447-4121",
+                  "description": ""
+                },
+                {
+                  "key": "ssn",
+                  "value": "622-11-9999",
+                  "description": ""
+                },
+                {
+                  "key": "username",
+                  "value": "{{username}}",
+                  "description": ""
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer Accounts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });",
+                  "var accts = pm.response.json();",
+                  "pm.test(\"Accounts is array\", function () { pm.expect(Array.isArray(accts)).to.be.true; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}/accounts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}",
+                "accounts"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Accounts Operations",
+      "description": "Account creation, inquiries, deposits, withdrawals, transfers, and bill payments.",
+      "item": [
+        {
+          "name": "Get Account by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });",
+                  "var acct = pm.response.json();",
+                  "pm.test(\"Account ID matches\", function () { pm.expect(acct.id.toString()).to.eql(pm.environment.get(\"primaryAccountId\")); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{primaryAccountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{primaryAccountId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Checking Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });",
+                  "var acct = pm.response.json();",
+                  "pm.test(\"Checking account created\", function () { pm.expect(acct.type).to.eql(\"CHECKING\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/createAccount?customerId={{customerId}}&newAccountType=0&fromAccountId={{primaryAccountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "createAccount"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "description": ""
+                },
+                {
+                  "key": "newAccountType",
+                  "value": "0",
+                  "description": ""
+                },
+                {
+                  "key": "fromAccountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Savings Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });",
+                  "var acct = pm.response.json();",
+                  "pm.test(\"Savings account created\", function () { pm.expect(acct.type).to.eql(\"SAVINGS\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/createAccount?customerId={{customerId}}&newAccountType=1&fromAccountId={{primaryAccountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "createAccount"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "description": ""
+                },
+                {
+                  "key": "newAccountType",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "fromAccountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deposit Funds",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/deposit?accountId={{primaryAccountId}}&amount={{depositAmount}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deposit"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "{{depositAmount}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Withdraw Funds",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/withdraw?accountId={{primaryAccountId}}&amount={{withdrawAmount}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "withdraw"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "{{withdrawAmount}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transfer Funds",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transfer?fromAccountId={{primaryAccountId}}&toAccountId={{secondaryAccountId}}&amount={{transferAmount}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transfer"
+              ],
+              "query": [
+                {
+                  "key": "fromAccountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "toAccountId",
+                  "value": "{{secondaryAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "{{transferAmount}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Bill Pay",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/billpay?accountId={{primaryAccountId}}&amount={{billPayAmount}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "billpay"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "{{billPayAmount}}",
+                  "description": ""
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Electric Power Co\",\n  \"address\": {\n    \"street\": \"789 Power St\",\n    \"city\": \"Beverly Hills\",\n    \"state\": \"CA\",\n    \"zipCode\": \"90210\"\n  },\n  \"phoneNumber\": \"310-555-0909\",\n  \"accountNumber\": 112233\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Transactions Operations",
+      "description": "Transaction history and multifaceted filtering.",
+      "item": [
+        {
+          "name": "Get Account Transactions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });",
+                  "var txns = pm.response.json();",
+                  "pm.test(\"Transactions array returned\", function () { pm.expect(Array.isArray(txns)).to.be.true; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{primaryAccountId}}/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{primaryAccountId}}",
+                "transactions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transaction by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 or 400\", function () { pm.expect([200, 204, 400, 404]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/transactions/{{transactionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "transactions",
+                "{{transactionId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Filter Transactions by Amount",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{primaryAccountId}}/transactions/amount/{{transferAmount}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{primaryAccountId}}",
+                "transactions",
+                "amount",
+                "{{transferAmount}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Filter Transactions by Month & Type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/{{primaryAccountId}}/transactions/month/All/type/All",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "accounts",
+                "{{primaryAccountId}}",
+                "transactions",
+                "month",
+                "All",
+                "type",
+                "All"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 - Loans Operations",
+      "description": "Loan applications and underwriting decisions.",
+      "item": [
+        {
+          "name": "Request Loan (Approved 25% Down Payment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });",
+                  "var res = pm.response.json();",
+                  "pm.test(\"Decision is boolean\", function () { pm.expect(typeof res.approved).to.eql(\"boolean\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/requestLoan?customerId={{customerId}}&amount={{loanAmount}}&downPayment={{downPayment}}&fromAccountId={{primaryAccountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requestLoan"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "{{loanAmount}}",
+                  "description": ""
+                },
+                {
+                  "key": "downPayment",
+                  "value": "{{downPayment}}",
+                  "description": ""
+                },
+                {
+                  "key": "fromAccountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Request Loan (Insufficient Down Payment)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/requestLoan?customerId={{customerId}}&amount=50000&downPayment=1&fromAccountId={{primaryAccountId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "requestLoan"
+              ],
+              "query": [
+                {
+                  "key": "customerId",
+                  "value": "{{customerId}}",
+                  "description": ""
+                },
+                {
+                  "key": "amount",
+                  "value": "50000",
+                  "description": ""
+                },
+                {
+                  "key": "downPayment",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "fromAccountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 - Positions Operations",
+      "description": "Stock trading portfolio management: buy, sell, and view positions.",
+      "item": [
+        {
+          "name": "Buy Stock Position",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}/buyPosition?accountId={{primaryAccountId}}&name={{stockName}}&symbol={{stockSymbol}}&shares={{stockShares}}&pricePerShare={{stockPrice}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}",
+                "buyPosition"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "name",
+                  "value": "{{stockName}}",
+                  "description": ""
+                },
+                {
+                  "key": "symbol",
+                  "value": "{{stockSymbol}}",
+                  "description": ""
+                },
+                {
+                  "key": "shares",
+                  "value": "{{stockShares}}",
+                  "description": ""
+                },
+                {
+                  "key": "pricePerShare",
+                  "value": "{{stockPrice}}",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Customer Positions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}/positions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}",
+                "positions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Position by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 or 400\", function () { pm.expect([200, 204, 400, 404]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/positions/{{positionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "positions",
+                "{{positionId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sell Stock Position",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200 or 400\", function () { pm.expect([200, 204, 400, 404]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/customers/{{customerId}}/sellPosition?accountId={{primaryAccountId}}&positionId={{positionId}}&shares=1&pricePerShare=325.00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "customers",
+                "{{customerId}}",
+                "sellPosition"
+              ],
+              "query": [
+                {
+                  "key": "accountId",
+                  "value": "{{primaryAccountId}}",
+                  "description": ""
+                },
+                {
+                  "key": "positionId",
+                  "value": "{{positionId}}",
+                  "description": ""
+                },
+                {
+                  "key": "shares",
+                  "value": "1",
+                  "description": ""
+                },
+                {
+                  "key": "pricePerShare",
+                  "value": "325.00",
+                  "description": ""
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08 - JMS Messaging",
+      "description": "JMS message queue listener startup and shutdown control.",
+      "item": [
+        {
+          "name": "Startup JMS Listener",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/startupJmsListener",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "startupJmsListener"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Shutdown JMS Listener",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", function () { pm.expect([200, 204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/shutdownJmsListener",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shutdownJmsListener"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

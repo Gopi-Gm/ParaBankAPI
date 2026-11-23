@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BillPayResult",
+  "type": "object",
+  "required": ["accountId", "amount", "payeeName"],
+  "properties": {
+    "accountId": { "type": "integer" },
+    "amount": { "type": "number" },
+    "payeeName": { "type": "string" }
+  }
+}

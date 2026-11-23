@@ -1,0 +1,14 @@
+.DS_Store
+*.swp
+*.swo
+*.tmp
+*.log
+.idea/
+.vscode/
+node_modules/
+test-results/
+playwright-report/
+blob-report/
+
+
+.playwright-mcp/

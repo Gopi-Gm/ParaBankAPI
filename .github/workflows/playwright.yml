@@ -1,0 +1,203 @@
+name: 🎭 ParaBank API Test Automation CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  schedule:
+    # Daily Nightly Execution at 02:30 UTC (08:00 AM IST)
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Select test suite / tag to execute'
+        type: choice
+        required: true
+        default: 'test:master'
+        options:
+          - 'test:master'
+          - 'test:sanity'
+          - 'test:regression'
+          - 'test:api'
+          - 'test:security'
+          - 'test:perf'
+          - 'test:schema'
+          - 'test:ai'
+          - 'test:guardrails'
+          - 'test:hallucination'
+          - 'test:evals'
+          - 'all'
+      environment:
+        description: 'Target Environment'
+        type: choice
+        required: true
+        default: 'qa'
+        options:
+          - 'qa'
+          - 'dev'
+          - 'staging'
+          - 'prod'
+      base_url:
+        description: 'API Base URL override (leave blank to use default)'
+        type: string
+        required: false
+        default: 'https://parabank.parasoft.com/parabank/services/bank'
+      os:
+        description: 'Runner Operating System'
+        type: choice
+        required: false
+        default: 'ubuntu-latest'
+        options:
+          - 'ubuntu-latest'
+          - 'windows-latest'
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  api-tests:
+    name: 🧪 API Test Execution
+    runs-on: ${{ github.event.inputs.os || 'ubuntu-latest' }}
+    timeout-minutes: 60
+
+    env:
+      CI: '1'
+      APP_ENV: ${{ github.event.inputs.environment || 'qa' }}
+      API_BASE_URL: ${{ github.event.inputs.base_url || 'https://parabank.parasoft.com/parabank/services/bank' }}
+      PARABANK_USERNAME: ${{ secrets.PARABANK_USERNAME || 'john' }}
+      PARABANK_PASSWORD: ${{ secrets.PARABANK_PASSWORD || 'demo' }}
+      CUSTOMER_ID: ${{ secrets.CUSTOMER_ID || '12212' }}
+      PRIMARY_ACCOUNT_ID: ${{ secrets.PRIMARY_ACCOUNT_ID || '12345' }}
+      SECONDARY_ACCOUNT_ID: ${{ secrets.SECONDARY_ACCOUNT_ID || '12456' }}
+      AI_EVAL_PROVIDER: ${{ secrets.AI_EVAL_PROVIDER || 'heuristic-fallback' }}
+      AI_EVAL_API_KEY: ${{ secrets.AI_EVAL_API_KEY || '' }}
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Set up Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Project Dependencies
+        run: npm ci
+
+      - name: ⚙️ Setup Environment (.env)
+        run: |
+          if [ ! -f .env ]; then
+            cp .env.example .env
+          fi
+        shell: bash
+
+      - name: 🧪 Execute Playwright API Tests
+        id: run_tests
+        run: |
+          # Resolve target test suite based on trigger
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SUITE="test:sanity"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            SUITE="test:regression"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            SUITE="test:master"
+          else
+            SUITE="${{ github.event.inputs.test_suite || 'test:master' }}"
+          fi
+
+          echo "SUITE_NAME=$SUITE" >> $GITHUB_ENV
+          echo "=========================================================="
+          echo "🚀 Trigger Event    : ${{ github.event_name }}"
+          echo "🎯 Executing Suite  : $SUITE"
+          echo "🌍 Environment      : ${{ github.event.inputs.environment || 'qa' }}"
+          echo "🔗 API Base URL     : $API_BASE_URL"
+          echo "👤 Customer ID      : $CUSTOMER_ID"
+          echo "🤖 AI Eval Provider : $AI_EVAL_PROVIDER"
+          echo "=========================================================="
+
+          if [ "$SUITE" = "all" ]; then
+            npx playwright test
+          else
+            npm run "$SUITE"
+          fi
+        shell: bash
+
+      - name: 📈 Generate Allure HTML Report
+        if: always()
+        run: |
+          if [ -d "allure-results" ] && [ "$(ls -A allure-results 2>/dev/null)" ]; then
+            npx -y allure-commandline generate allure-results --clean -o allure-report || true
+          fi
+        shell: bash
+
+      - name: 📊 Upload Playwright HTML Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-html-report
+          path: reports/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: 📋 Upload Custom Execution Dashboard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: custom-html-report
+          path: custom-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: 📈 Upload Allure Results & HTML Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: |
+            allure-results/
+            allure-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: 🔍 Upload Playwright Failure Artifacts & Traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failure-artifacts
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: 📝 Publish GitHub Actions Job Summary
+        if: always()
+        run: |
+          echo "## 🎭 ParaBank API Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | ${{ steps.run_tests.outcome == 'success' && '✅ PASSED' || '❌ FAILED' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Event** | \`${{ github.event_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Test Suite** | \`${{ env.SUITE_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target Environment** | \`${{ github.event.inputs.environment || 'qa' }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Base URL** | \`${{ env.API_BASE_URL }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Runner OS** | \`${{ runner.os }} (${{ runner.arch }})\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Test Reports & Artifacts Generated" >> $GITHUB_STEP_SUMMARY
+          echo "- **Playwright HTML Report:** Attached in \`playwright-html-report\` artifact" >> $GITHUB_STEP_SUMMARY
+          echo "- **Custom Dashboard:** Attached in \`custom-html-report\` artifact" >> $GITHUB_STEP_SUMMARY
+          echo "- **Allure Report & Results:** Attached in \`allure-report\` artifact" >> $GITHUB_STEP_SUMMARY
+          echo "- **JUnit XML:** Generated at \`reports/results.xml\`" >> $GITHUB_STEP_SUMMARY
+        shell: bash

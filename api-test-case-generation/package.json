@@ -1,0 +1,22 @@
+{
+  "name": "api-test-case-generation",
+  "version": "2.0.0",
+  "description": "QA Agent Skills & Test Case Generation Suite for API and Database testing",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "keywords": [
+    "qa",
+    "test-cases",
+    "playwright",
+    "api-testing",
+    "db-testing",
+    "automation",
+    "mcp"
+  ],
+  "author": "Gopi Mohan",
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}
