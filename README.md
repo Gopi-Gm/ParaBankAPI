@@ -317,9 +317,20 @@ The framework is pre-configured with 4 simultaneous reporters:
    ```powershell
    npx playwright show-report reports
    ```
+   ![Playwright HTML Report](docs/images/playwright-html-report.jpg)
+
 2. **Custom Real-Time Dashboard Report**:
-   - Generated automatically under `custom-report/report_<timestamp>.html`.
+   - Generated automatically under `custom-report/` (`index.html` for the latest run, `history.html` for run history, and `report_<timestamp>.html` for archived runs).
    - Displays real-time test execution cards, pass/fail ratios, durations, and logs.
+   - Open the latest custom report or history in your default browser:
+     ```powershell
+     # Open latest custom report
+     start custom-report\index.html
+
+     # Open custom report execution history
+     start custom-report\history.html
+     ```
+   ![Custom HTML Report](docs/images/custom-html-report.jpg)
 3. **JUnit XML Report**:
    - Exported to `reports/results.xml` for Jenkins, Azure DevOps, and GitHub Actions test result visualizers.
 4. **Allure Report**:
@@ -328,6 +339,10 @@ The framework is pre-configured with 4 simultaneous reporters:
      ```powershell
      npx allure serve allure-results
      ```
+5. **API Test Case Generation Subproject Report**:
+   ```powershell
+   npm run report:generation
+   ```
 
 ---
 
