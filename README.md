@@ -133,7 +133,7 @@ ParaBank/
 │   └── ai_evals_hallucination_guardrails_v6.md # v6.0 GenAI testing design & implementation
 │
 ├── prompts/                      # Context & specification prompt drivers
-│   ├── fakestore_api_test_prompts.md
+│   ├── parabank_api_test_prompts.md # Comprehensive ParaBank REST API test prompts
 │   └── utilitis_prompt.md
 │
 ├── api-test-case-generation/     # API Agent Skills & STLC generation suite
