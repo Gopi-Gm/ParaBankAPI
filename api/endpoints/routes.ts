@@ -6,8 +6,13 @@
 export const Routes = {
   BASE_URL: process.env.API_BASE_URL || 'https://parabank.parasoft.com/parabank/services/bank',
 
-  url(endpoint: string): string {
-    const clean = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  url(endpoint: string, params?: Record<string, string | number>): string {
+    let clean = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    if (params) {
+      for (const [key, value] of Object.entries(params)) {
+        clean = clean.replace(`{${key}}`, encodeURIComponent(String(value)));
+      }
+    }
     return `${this.BASE_URL}${clean}`;
   },
 

@@ -1,11 +1,10 @@
-import { APIRequestContext } from '@playwright/test';
-import { test as baseTest, expect as baseExpect } from './apiFixture';
+import { APIRequestContext, test as baseTest, expect as baseExpect } from '@playwright/test';
 import { Guardrails } from '../utils/ai/guardrails';
 import { HallucinationDetector } from '../utils/ai/hallucination';
 
 declare global {
   namespace PlaywrightTest {
-    interface Matchers<R, T = {}> {
+    interface Matchers<R, T = unknown> {
       toHaveNoPII(): R;
       toPassRefusalGuardrail(): R;
       toNotHallucinateUrls(request: APIRequestContext): Promise<R>;

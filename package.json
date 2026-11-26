@@ -16,17 +16,16 @@
     "@types/node": "^26.6.5"
   },
   "dependencies": {
-    "@axe-core/playwright": "^4.14.0",
     "@faker-js/faker": "^10.6.0",
     "ajv": "^8.20.0",
     "allure-playwright": "^3.13.0",
     "csv-parse": "^7.0.3",
     "dotenv": "^18.0.8",
     "luxon": "^3.7.2",
-    "mysql2": "^3.24.6",
     "xlsx": "^0.18.5"
   },
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "test:api": "playwright test --grep @api",
     "test:master": "playwright test --grep @master",
     "test:sanity": "playwright test --grep @sanity",
