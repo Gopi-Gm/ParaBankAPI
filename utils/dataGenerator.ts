@@ -81,33 +81,25 @@ export class RandomDataUtil {
         return faker.date.past({ years }).toISOString().split('T')[0];
     }
 
-    // ==================== Commerce ====================
+    // ==================== Banking Amounts & Numbers ====================
 
-    static getProductName(): string {
-        return faker.commerce.productName();
+    static getAmount(min: number = 10, max: number = 1000): number {
+        return faker.number.float({ min, max, fractionDigits: 2 });
     }
 
-    static getProductDescription(): string {
-        return faker.commerce.productDescription();
+    static getNumber(min: number = 1, max: number = 999): number {
+        return faker.number.int({ min, max });
     }
 
-    static getProductPrice(): string {
-        return faker.commerce.price({ min: 1, max: 500, dec: 2 });
+    static getAccountNumber(): string {
+        return faker.number.int({ min: 10000, max: 99999 }).toString();
     }
 
-    static getDepartment(): string {
-        return faker.commerce.department();
+    static getSSN(): string {
+        return faker.string.numeric('###-##-####');
     }
 
-    static getImageUrl(): string {
-        return faker.image.url();
-    }
-
-    static getNumber(): number {
-        return faker.number.int({ min: 1, max: 999 });
-    }
-
-    // ==================== API Payload Generators ====================
+    // ==================== ParaBank API Payload Generators ====================
 
     static generateInvalidLoginPayload() {
         return {
@@ -116,74 +108,64 @@ export class RandomDataUtil {
         };
     }
 
-    static generateProductPayload() {
+    static generatePayeePayload() {
         return {
-            title: this.getProductName(),
-            price: parseFloat(this.getProductPrice()),
-            description: this.getProductDescription(),
-            image: this.getImageUrl(),
-            category: this.getDepartment().toLowerCase()
-        };
-    }
-
-    static generateUpdatedProductPayload() {
-        const payload = this.generateProductPayload();
-        payload.title = `Updated ${payload.title}`;
-        return payload;
-    }
-
-    static generateUserPayload() {
-        return {
-            email: this.getEmail(),
-            username: this.getUsername(),
-            password: this.getPassword(),
-            name: {
-                firstname: this.getFirstName(),
-                lastname: this.getLastName()
-            },
+            name: faker.company.name(),
             address: {
+                street: this.getStreetAddress(),
                 city: this.getCity(),
-                street: this.getStreet(),
-                number: this.getNumber(),
-                zipcode: this.getZipCode(),
-                geolocation: {
-                    lat: this.getLatitude(),
-                    long: this.getLongitude()
-                }
+                state: this.getState(),
+                zipCode: this.getZipCode()
             },
-            phone: this.getPhoneNumber()
+            phoneNumber: this.getPhoneNumber(),
+            accountNumber: this.getAccountNumber()
         };
     }
 
-    static generateUserUpdatePayload() {
-        const payload = this.generateUserPayload();
-        payload.username = `updated-${payload.username}`;
-        return payload;
-    }
-
-    static generateCartPayload(userId: number) {
+    static generateCustomerProfile() {
         return {
-            userId,
-            date: this.getCurrentDate(),
-            products: [
-                {
-                    productId: this.getNumber(),
-                    quantity: this.getNumber()
-                }
-            ]
+            firstName: this.getFirstName(),
+            lastName: this.getLastName(),
+            street: this.getStreetAddress(),
+            city: this.getCity(),
+            state: this.getState(),
+            zipCode: this.getZipCode(),
+            phoneNumber: this.getPhoneNumber(),
+            ssn: this.getSSN()
         };
     }
 
-    static generateUpdatedCartPayload(userId: number) {
+    static generateLoanApplication(customerId: number, accountId: number, amount: number = 1000, downPayment: number = 250) {
         return {
-            userId,
-            date: this.getCurrentDate(),
-            products: [
-                {
-                    productId: this.getNumber(),
-                    quantity: this.getNumber()
-                }
-            ]
+            customerId,
+            amount,
+            downPayment,
+            fromAccountId: accountId
+        };
+    }
+
+    static generateStockPosition(accountId: number, symbol: string = 'MSFT', shares: number = 5, pricePerShare: number = 320.00) {
+        return {
+            accountId,
+            name: symbol === 'MSFT' ? 'Microsoft Corp' : faker.company.name(),
+            symbol,
+            shares,
+            pricePerShare
+        };
+    }
+
+    static generateTransferData(fromAccountId: number, toAccountId: number, amount: number = 50.00) {
+        return {
+            fromAccountId,
+            toAccountId,
+            amount
+        };
+    }
+
+    static generateDepositData(accountId: number, amount: number = 100.00) {
+        return {
+            accountId,
+            amount
         };
     }
 }

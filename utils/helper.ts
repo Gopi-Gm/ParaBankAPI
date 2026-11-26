@@ -4,18 +4,25 @@ export class Helper {
         return parseFloat(cleaned);
     }
 
-    static getProductDetails() {
+    static getLoginDetails() {
         return {
-            productName: "MacBook",
-            productQuantity: "1",
-            totalPrice: "$602.00"
+            username: process.env.PARABANK_USERNAME || 'john',
+            password: process.env.PARABANK_PASSWORD || 'demo'
         };
     }
 
-    static getLoginDetails() {
+    static getCustomerDetails() {
         return {
-            email: "pavanol@xyz.com",
-            password: "test@123"
+            customerId: Number(process.env.CUSTOMER_ID) || 12212,
+            firstName: 'John',
+            lastName: 'Smith'
+        };
+    }
+
+    static getAccountDetails() {
+        return {
+            primaryAccountId: Number(process.env.PRIMARY_ACCOUNT_ID) || 12345,
+            secondaryAccountId: Number(process.env.SECONDARY_ACCOUNT_ID) || 12456
         };
     }
 }

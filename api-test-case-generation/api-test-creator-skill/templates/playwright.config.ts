@@ -30,7 +30,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await request.get('/')`. */
-    baseURL: process.env.BASE_URL || 'https://restful-booker.herokuapp.com',
+    baseURL: process.env.BASE_URL || 'https://parabank.parasoft.com/parabank/services/bank',
 
     /* Extra HTTP headers to send with every request */
     extraHTTPHeaders: {
